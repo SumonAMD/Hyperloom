@@ -201,8 +201,15 @@ def test_a_resume_without_max_hours_keeps_the_sessions_own_budget():
     assert resolve_leg_max_hours(None, session_max_minutes=600.0) == 10.0
 
 
-def test_a_resume_of_an_unbounded_session_stays_unbounded():
-    assert resolve_leg_max_hours(None, session_max_minutes=0.0) == 0.0
+def test_a_resume_of_a_session_with_no_budget_takes_the_default():
+    """Zero is not a budget to inherit, and it is not a valid one to pass on.
+
+    A leg launched with ``MAX_HOURS=0`` is refused by the objective builder, so
+    a session recording no budget leaves the leg on the same default a fresh run
+    takes.
+    """
+    assert resolve_leg_max_hours(None, session_max_minutes=0.0) == DEFAULT_MAX_HOURS
+    assert resolve_leg_max_hours(None, session_max_minutes=None) == DEFAULT_MAX_HOURS
 
 
 def test_the_parser_leaves_max_hours_unset_so_a_resume_can_tell():

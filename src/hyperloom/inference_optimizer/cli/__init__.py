@@ -966,16 +966,19 @@ def resolve_leg_max_hours(max_hours: float | None, *, session_max_minutes: float
 
     Args:
         max_hours: The value ``--max-hours`` carried, or ``None`` when unset.
-        session_max_minutes: The resumed session's budget after any grant, or
-            ``None`` for a fresh run. ``0`` is an unbounded session and is
-            passed through as ``0.0``.
+        session_max_minutes: The resumed session's budget after any grant,
+            ``None`` for a fresh run, and ``0`` for a session that records no
+            budget at all. There is nothing to inherit in that last case, so it
+            takes the same documented default a fresh run does -- a zero here
+            would travel on as ``MAX_HOURS=0``, which the objective builder
+            rejects outright.
 
     Returns:
         float: Hours this leg is bounded by.
     """
     if max_hours is not None:
         return float(max_hours)
-    if session_max_minutes is None:
+    if not session_max_minutes:
         return DEFAULT_MAX_HOURS
     return float(session_max_minutes) / 60.0
 
