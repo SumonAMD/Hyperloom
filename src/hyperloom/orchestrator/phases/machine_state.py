@@ -1176,6 +1176,16 @@ def warm_replay_in_flight(state: Any) -> bool:
     return str(outcome.get("status") or "").strip() == "in_flight"
 
 
+def initial_analysis_in_flight(state: Any) -> bool:
+    """True while the PRELUDE bootstrap roofline/profile task is still running.
+
+    The baseline writeback stamps ``auto_roofline_pending_task_id`` and the
+    end-of-tick phase check runs after that. Leaving PRELUDE on throughput
+    alone cancels the task before it can write a trace.
+    """
+    return bool(str(getattr(state, "auto_roofline_pending_task_id", "") or "").strip())
+
+
 def _kernel_opt_max_failures() -> int:
     """Resolve the kernel infra-failure retry budget (lazy import)."""
     from ..state.shared_state import resolve_kernel_opt_max_failures
@@ -1400,8 +1410,8 @@ def kernel_work_pending(state: Any) -> bool:
 
 
 def exit_normal_prelude(state: Any) -> tuple[str, dict[str, Any]] | None:
-    """``baseline_tput > 0`` and warm-replay settled → ``prelude_done`` (else ``None``)."""
-    if warm_replay_in_flight(state):
+    """Landed baseline, settled warm-replay, and no in-flight initial analysis → ``prelude_done`` (else ``None``)."""
+    if warm_replay_in_flight(state) or initial_analysis_in_flight(state):
         return None
     if bool(getattr(state, "baseline_measure_round_dropped", False)):
         return None
@@ -1875,7 +1885,7 @@ def compute_next_phase(
         if enablement_enabled and streak >= 1:
             return PHASE_ENABLEMENT, "enablement_entered", {"baseline_failure_streak": streak}
         norm = exit_normal_prelude(state)
-        if norm is None:
+        if norm is None and not initial_analysis_in_flight(state):
             # No baseline and no clock left: name the failure instead of letting the run read as an ordinary exit.
             exhausted = exit_time_exhausted_prelude(state, now_unix=now_unix)
             if exhausted is not None:
